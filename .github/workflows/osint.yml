@@ -1,0 +1,123 @@
+name: Discord OSINT Scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      discord_id:
+        description: 'Discord ID'
+        required: true
+        type: string
+      email:
+        description: 'Email (varsa)'
+        required: false
+        type: string
+      username:
+        description: 'Kullanıcı adı (varsa)'
+        required: false
+        type: string
+
+jobs:
+  osint-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Tools
+        run: |
+          pip install requests beautifulsoup4 dnspython python-whois holehe maigret sherlock
+          git clone https://github.com/sherlock-project/sherlock.git
+          git clone https://github.com/soxoj/maigret.git
+          cd maigret && pip install -r requirements.txt && cd ..
+      
+      - name: Discord Lookup
+        run: |
+          echo "=== DISCORD LOOKUP ==="
+          curl -s "https://discord.id/api/v1/user/${{ inputs.discord_id }}" | jq .
+          curl -s "https://discordlookup.com/api/user/${{ inputs.discord_id }}" | jq .
+          
+      - name: Holehe Email Search
+        if: inputs.email != ''
+        run: |
+          echo "=== HOLEHE EMAIL SCAN ==="
+          holehe "${{ inputs.email }}"
+          
+      - name: Sherlock Username Search
+        if: inputs.username != ''
+        run: |
+          echo "=== SHERLOCK SCAN ==="
+          cd sherlock
+          python sherlock "${{ inputs.username }}" --output results --print-found
+          cat results/*.txt 2>/dev/null || echo "Sonuç yok"
+          
+      - name: Maigret Deep Search
+        if: inputs.username != ''
+        run: |
+          echo "=== MAIGRET DEEP SCAN ==="
+          cd maigret
+          python maigret.py "${{ inputs.username }}" --all-sites --no-recursive --timeout 30
+          
+      - name: Dehashed Search
+        run: |
+          echo "=== DEHASHED SEARCH ==="
+          curl -s "https://api.dehashed.com/search?query=${{ inputs.discord_id }}" \
+            -H "Accept: application/json" \
+            -H "Authorization: Basic $(echo -n 'demo@demo.com:demo' | base64)" | jq .
+          
+      - name: HIBP Check
+        if: inputs.email != ''
+        run: |
+          echo "=== HAVE I BEEN PWNED ==="
+          curl -s "https://haveibeenpwned.com/api/v3/breachedaccount/${{ inputs.email }}" \
+            -H "hibp-api-key: 0" \
+            -H "user-agent: OSINT-Scanner" | jq .
+          
+      - name: IP & WHOIS
+        if: inputs.email != ''
+        run: |
+          DOMAIN=$(echo "${{ inputs.email }}" | cut -d'@' -f2)
+          echo "=== DOMAIN: $DOMAIN ==="
+          IP=$(dig +short $DOMAIN | head -1)
+          echo "IP: $IP"
+          curl -s "http://ip-api.com/json/$IP" | jq .
+          whois $DOMAIN 2>/dev/null | head -30
+          
+      - name: IntelX Search
+        run: |
+          echo "=== INTELX SEARCH ==="
+          curl -s -X POST "https://2.intelx.io/intelligent/search" \
+            -H "x-key: 00000000-0000-0000-0000-000000000000" \
+            -H "Content-Type: application/json" \
+            -d "{\"term\":\"${{ inputs.discord_id }}\",\"maxresults\":10,\"media\":0}" | jq .
+          
+      - name: Snusbase Search
+        run: |
+          echo "=== SNUSBASE SEARCH ==="
+          curl -s -X POST "https://api.snusbase.com/data/search" \
+            -H "Content-Type: application/json" \
+            -d "{\"type\":\"all\",\"term\":\"${{ inputs.username || inputs.discord_id }}\"}" | jq .
+          
+      - name: Generate Report
+        run: |
+          echo "# OSINT RAPORU" > report.md
+          echo "**Tarih:** $(date)" >> report.md
+          echo "**Discord ID:** ${{ inputs.discord_id }}" >> report.md
+          echo "**Kullanıcı Adı:** ${{ inputs.username }}" >> report.md
+          echo "**Email:** ${{ inputs.email }}" >> report.md
+          echo "" >> report.md
+          echo "## Sonuçlar yukarıdaki loglarda görülebilir." >> report.md
+          
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSINT-Report-${{ inputs.discord_id }}
+          path: |
+            report.md
+            sherlock/results/*.txt
+            *.json
