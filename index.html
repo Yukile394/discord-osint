@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT PANEL - GitHub Actions</title>
+    <style>
+        body { background: #0d1117; color: #c9d1d9; font-family: -apple-system, sans-serif; padding: 20px; }
+        h1 { color: #58a6ff; text-align: center; }
+        input, button { width: 100%; padding: 12px; margin: 5px 0; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #fff; font-size: 16px; }
+        button { background: #238636; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2ea043; }
+        button.red { background: #da3633; }
+        button.blue { background: #1f6feb; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
+        .grid button { font-size: 13px; padding: 10px; }
+        #output { background: #161b22; padding: 15px; border-radius: 8px; margin-top: 15px; max-height: 300px; overflow-y: auto; font-size: 13px; white-space: pre-wrap; display: none; }
+    </style>
+</head>
+<body>
+    <h1>🔍 DISCORD OSINT PANEL</h1>
+    
+    <input type="text" id="did" placeholder="Discord ID girin" inputmode="numeric">
+    <input type="text" id="user" placeholder="Kullanıcı adı (varsa)">
+    <input type="text" id="email" placeholder="Email (varsa)">
+    
+    <button onclick="scanAll()">🚀 TÜM TARAMALARI BAŞLAT</button>
+    <button class="blue" onclick="triggerGitHubActions()">⚡ GitHub Actions ile Tara</button>
+    
+    <div class="grid">
+        <button onclick="openUrl('discord.id')">Discord.id</button>
+        <button onclick="openUrl('discordlookup')">DiscordLookup</button>
+        <button onclick="openUrl('dehashed')">Dehashed</button>
+        <button onclick="openUrl('snusbase')">Snusbase</button>
+        <button onclick="openUrl('intelx')">IntelX</button>
+        <button onclick="openUrl('hibp')">HIBP</button>
+        <button onclick="openUrl('whatsmyname')">WhatsMyName</button>
+        <button onclick="openUrl('epieos')">Epieos</button>
+        <button onclick="openUrl('leakcheck')">LeakCheck</button>
+        <button onclick="openUrl('breachdirectory')">BreachDirectory</button>
+        <button onclick="openUrl('sherlock')">Sherlock</button>
+        <button onclick="openUrl('maigret')">Maigret</button>
+    </div>
+    
+    <div id="output"></div>
+
+    <script>
+        const did = () => document.getElementById('did').value.trim();
+        const user = () => document.getElementById('user').value.trim() || did();
+        const email = () => document.getElementById('email').value.trim();
+        
+        function openUrl(site) {
+            const id = did();
+            const u = user();
+            const e = email();
+            
+            const urls = {
+                'discord.id': `https://discord.id/?prefill=${id}`,
+                'discordlookup': `https://discordlookup.com/user/${id}`,
+                'dehashed': `https://dehashed.com/search?query=${u}`,
+                'snusbase': `https://snusbase.com/search?q=${u}`,
+                'intelx': `https://intelx.io/?s=${u}`,
+                'hibp': e ? `https://haveibeenpwned.com/account/${e}` : 'https://haveibeenpwned.com/',
+                'whatsmyname': 'https://whatsmyname.app/',
+                'epieos': 'https://epieos.com/',
+                'leakcheck': `https://leakcheck.io/search?q=${u}`,
+                'breachdirectory': `https://breachdirectory.org/search?q=${u}`,
+                'sherlock': `https://github.com/sherlock-project/sherlock`,
+                'maigret': `https://github.com/soxoj/maigret`
+            };
+            
+            window.open(urls[site], '_blank');
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('output').textContent += `\nAçıldı: ${site} -> ${urls[site]}`;
+        }
+        
+        function scanAll() {
+            const id = did();
+            if(!id) return alert('Discord ID girin!');
+            
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('output').textContent = 'Tüm taramalar başlatılıyor...\n';
+            
+            const sites = ['discord.id', 'discordlookup', 'dehashed', 'snusbase', 'intelx', 'whatsmyname', 'epieos', 'leakcheck', 'breachdirectory'];
+            sites.forEach((site, i) => setTimeout(() => openUrl(site), i * 800));
+        }
+        
+        function triggerGitHubActions() {
+            const id = did();
+            if(!id) return alert('Discord ID girin!');
+            
+            const repo = prompt('GitHub repo adınız (kullanici/repo):');
+            if(!repo) return;
+            
+            const url = `https://github.com/${repo}/actions/workflows/osint.yml`;
+            window.open(url, '_blank');
+            
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('output').textContent = 
+                'GitHub Actions sayfası açıldı.\n' +
+                '1. "Run workflow" butonuna tıklayın\n' +
+                '2. Discord ID: ' + id + '\n' +
+                '3. Kullanıcı adı: ' + user() + '\n' +
+                '4. Email: ' + (email() || 'yok') + '\n' +
+                '5. Yeşil "Run workflow" butonuna tıklayın';
+        }
+    </script>
+</body>
+</html>
